@@ -18,7 +18,7 @@ if (installed_version != required_version) {
     version = as.character(required_version),
     repos = getOption("repos"),
     upgrade = "never",
-    dependencies = TRUE
+    dependencies = NA
   )
 }
 
