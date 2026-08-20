@@ -9,7 +9,7 @@ if (!requireNamespace("remotes", quietly = TRUE)) {
 installed_version <- if (requireNamespace("nflreadr", quietly = TRUE)) {
   packageVersion("nflreadr")
 } else {
-  package_version("0")
+  package_version("0.0.0")
 }
 
 if (installed_version != required_version) {
