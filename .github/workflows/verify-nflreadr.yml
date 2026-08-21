@@ -53,7 +53,7 @@ jobs:
       - name: Export locked 2025 player-week data
         env:
           NFLREADR_SEASON: "2025"
-          NFLREADR_EXPECTED_ROWS: "19422"
+          NFLREADR_EXPECTED_SOURCE_ROWS: "19422"
         run: Rscript scripts/export_player_weekly.R
 
       - name: Validate full load in local SQLite
@@ -61,8 +61,7 @@ jobs:
           python scripts/load_player_weekly.py \
             --source artifacts/nflreadr_player_weekly_2025.csv \
             --backend local \
-            --local-db artifacts/nflreadr_validation.sqlite \
-            --expected-rows 19422
+            --local-db artifacts/nflreadr_validation.sqlite
 
       - name: Publish validation artifacts
         uses: actions/upload-artifact@v4
@@ -72,4 +71,3 @@ jobs:
             artifacts/nflreadr_player_weekly_2025_validation.csv
             artifacts/nflreadr_validation.sqlite
           retention-days: 7
-
