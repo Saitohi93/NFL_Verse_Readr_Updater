@@ -99,7 +99,7 @@ require_columns(
   "PFR advanced passing source"
 )
 
-players <- load_players(file_type = "csv")
+players <- as.data.frame(load_players(file_type = "csv"))
 require_columns(players, c("gsis_id", "pfr_id"), "nflverse players source")
 player_map <- unique(players[c("pfr_id", "gsis_id")])
 pfr <- merge(
