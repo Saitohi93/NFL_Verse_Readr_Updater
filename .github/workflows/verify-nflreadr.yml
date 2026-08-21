@@ -13,7 +13,7 @@ permissions:
 jobs:
   verify-nflreadr:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Check out repository
@@ -46,3 +46,30 @@ jobs:
 
       - name: Verify package and nflverse data access
         run: Rscript scripts/verify_nflreadr.R
+
+      - name: Run Python loader tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Export locked 2025 player-week data
+        env:
+          NFLREADR_SEASON: "2025"
+          NFLREADR_EXPECTED_ROWS: "19422"
+        run: Rscript scripts/export_player_weekly.R
+
+      - name: Validate full load in local SQLite
+        run: |
+          python scripts/load_player_weekly.py \
+            --source artifacts/nflreadr_player_weekly_2025.csv \
+            --backend local \
+            --local-db artifacts/nflreadr_validation.sqlite \
+            --expected-rows 19422
+
+      - name: Publish validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nflreadr-player-weekly-2025-validation
+          path: |
+            artifacts/nflreadr_player_weekly_2025_validation.csv
+            artifacts/nflreadr_validation.sqlite
+          retention-days: 7
+
