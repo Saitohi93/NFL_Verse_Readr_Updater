@@ -17,9 +17,7 @@ After the setup pull request is merged and both secrets are present:
 
 1. Open the repository's **Actions** tab.
 2. Choose **Upload player-weekly data to Turso**.
-3. Select **Run workflow**.
-4. Leave `season` set to `2025`.
-5. Leave `expected_source_rows` set to `19422`.
+3. Select **Run workflow**. The first workflow is locked to the validated 2025 dataset.
 
 The workflow creates the schema, upserts every row, removes stale rows for the selected season only after a complete upload, validates the stored row count and statistical totals, and writes an audit record.
 
@@ -40,9 +38,9 @@ One audit row per successful upload with source rows, stored rows, season, times
 
 ## Safety rules
 
-- The 2025 load fails unless the source contains exactly 19,422 rows.
 - The complete 2025 source must contain exactly 19,422 rows before filtering.
-- Rows without `player_id` are counted and excluded.
+- The 22 rows without `player_id` are counted and excluded.
+- Exactly 19,400 identified-player rows must reach the uploader.
 - Blank game IDs or duplicate `(game_id, player_id)` keys stop the upload.
 - Upserts make retries safe.
 - Old rows are retained if a run fails before completion.
