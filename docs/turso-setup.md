@@ -19,7 +19,7 @@ After the setup pull request is merged and both secrets are present:
 2. Choose **Upload player-weekly data to Turso**.
 3. Select **Run workflow**.
 4. Leave `season` set to `2025`.
-5. Leave `expected_rows` set to `19422`.
+5. Leave `expected_source_rows` set to `19422`.
 
 The workflow creates the schema, upserts every row, removes stale rows for the selected season only after a complete upload, validates the stored row count and statistical totals, and writes an audit record.
 
@@ -27,7 +27,7 @@ The workflow creates the schema, upserts every row, removes stale rows for the s
 
 ### `nflreadr_player_weekly`
 
-One row per `(game_id, player_id)`. Every column delivered by `nflreadr::load_player_stats(..., summary_level = "week")` is stored as a queryable SQLite column. The table also stores:
+One row per identified `(game_id, player_id)`. Source rows without `player_id` are excluded before upload. Every column delivered by `nflreadr::load_player_stats(..., summary_level = "week")` is stored as a queryable SQLite column. The table also stores:
 
 - `raw_json` — lossless source-row representation
 - `source_updated_at` — identifier for the successful refresh
@@ -41,7 +41,9 @@ One audit row per successful upload with source rows, stored rows, season, times
 ## Safety rules
 
 - The 2025 load fails unless the source contains exactly 19,422 rows.
-- Blank or duplicate `(game_id, player_id)` keys stop the upload.
+- The complete 2025 source must contain exactly 19,422 rows before filtering.
+- Rows without `player_id` are counted and excluded.
+- Blank game IDs or duplicate `(game_id, player_id)` keys stop the upload.
 - Upserts make retries safe.
 - Old rows are retained if a run fails before completion.
 - Passing attempts, carries, targets, and passing/rushing/receiving yard totals must match the source.
