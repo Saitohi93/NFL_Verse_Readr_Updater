@@ -63,6 +63,7 @@ stats <- source_stats[identified, , drop = FALSE]
 if (nrow(stats) == 0) {
   stop("No identified player rows remain after filtering.", call. = FALSE)
 }
+stats <- as.data.frame(stats)
 
 key <- paste(stats$game_id, stats$player_id, sep = "|")
 duplicate_keys <- duplicated(key) | duplicated(key, fromLast = TRUE)
