@@ -8,8 +8,8 @@ on:
         required: true
         default: "2025"
         type: string
-      expected_rows:
-        description: Exact expected source row count
+      expected_source_rows:
+        description: Exact nflreadr source row count before filtering
         required: true
         default: "19422"
         type: string
@@ -58,7 +58,7 @@ jobs:
       - name: Export player-week source
         env:
           NFLREADR_SEASON: ${{ inputs.season }}
-          NFLREADR_EXPECTED_ROWS: ${{ inputs.expected_rows }}
+          NFLREADR_EXPECTED_SOURCE_ROWS: ${{ inputs.expected_source_rows }}
         run: Rscript scripts/export_player_weekly.R
 
       - name: Upload and validate Turso data
@@ -68,8 +68,7 @@ jobs:
         run: |
           python scripts/load_player_weekly.py \
             --source artifacts/nflreadr_player_weekly_${{ inputs.season }}.csv \
-            --backend turso \
-            --expected-rows ${{ inputs.expected_rows }}
+            --backend turso
 
       - name: Publish source validation summary
         if: always()
@@ -79,4 +78,3 @@ jobs:
           path: artifacts/nflreadr_player_weekly_${{ inputs.season }}_validation.csv
           if-no-files-found: warn
           retention-days: 14
-
