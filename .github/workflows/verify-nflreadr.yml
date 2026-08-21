@@ -1,0 +1,74 @@
+name: Verify nflreadr
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify-nflreadr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.4.3"
+          use-public-rspm: true
+
+      - name: Install R system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
+
+      - name: Restore R package cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/R
+            ~/.cache/nflreadr
+            ${{ env.R_LIBS_USER }}
+          key: ${{ runner.os }}-r-4.4.3-nflreadr-1.5.1-${{ hashFiles('scripts/install_nflreadr.R') }}
+          restore-keys: |
+            ${{ runner.os }}-r-4.4.3-nflreadr-1.5.1-
+
+      - name: Install pinned nflreadr
+        run: Rscript scripts/install_nflreadr.R
+
+      - name: Verify package and nflverse data access
+        run: Rscript scripts/verify_nflreadr.R
+
+      - name: Run Python loader tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Export locked 2025 player-week data
+        env:
+          NFLREADR_SEASON: "2025"
+          NFLREADR_EXPECTED_SOURCE_ROWS: "19422"
+        run: Rscript scripts/export_player_weekly.R
+
+      - name: Validate full load in local SQLite
+        run: |
+          python scripts/load_player_weekly.py \
+            --source artifacts/nflreadr_player_weekly_2025.csv \
+            --backend local \
+            --local-db artifacts/nflreadr_validation.sqlite \
+            --expected-rows 19400
+
+      - name: Publish validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nflreadr-player-weekly-2025-validation
+          path: |
+            artifacts/nflreadr_player_weekly_2025_validation.csv
+            artifacts/nflreadr_validation.sqlite
+          retention-days: 7
