@@ -1,0 +1,2 @@
+game_id,season,week,game_type,team,opponent,player_id,pfr_player_id,pfr_player_name,times_sacked,times_blitzed,times_hurried,times_hit,times_pressured,times_pressured_pct
+2025_01_AAA_BBB,2025,1,REG,AAA,BBB,00-0000001,TestAl00,Alpha Test,2,9,3,3,8,0.222

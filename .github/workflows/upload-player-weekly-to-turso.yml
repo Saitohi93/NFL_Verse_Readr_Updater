@@ -50,6 +50,13 @@ jobs:
           NFLREADR_EXPECTED_SOURCE_ROWS: "19422"
         run: Rscript scripts/export_player_weekly.R
 
+      - name: Export NGS separation and PFR pressure sources
+        env:
+          NFLREADR_SEASON: "2025"
+          NFLREADR_EXPECTED_NGS_ROWS: "1282"
+          NFLREADR_EXPECTED_PFR_ROWS: "684"
+        run: Rscript scripts/export_advanced_weekly.R
+
       - name: Upload and validate Turso data
         env:
           NFLREADR_TURSO_DATABASE_URL: ${{ secrets.NFLREADR_TURSO_DATABASE_URL }}
@@ -60,11 +67,25 @@ jobs:
             --backend turso \
             --expected-rows 19400
 
+      - name: Upload and validate advanced Turso data
+        env:
+          NFLREADR_TURSO_DATABASE_URL: ${{ secrets.NFLREADR_TURSO_DATABASE_URL }}
+          NFLREADR_TURSO_AUTH_TOKEN: ${{ secrets.NFLREADR_TURSO_AUTH_TOKEN }}
+        run: |
+          python scripts/load_advanced_weekly.py \
+            --ngs-source artifacts/nflreadr_ngs_receiving_weekly_2025.csv \
+            --pfr-source artifacts/nflreadr_pfr_passing_weekly_2025.csv \
+            --backend turso \
+            --expected-ngs-rows 1282 \
+            --expected-pfr-rows 684
+
       - name: Publish source validation summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nflreadr-player-weekly-2025-summary
-          path: artifacts/nflreadr_player_weekly_2025_validation.csv
+          path: |
+            artifacts/nflreadr_player_weekly_2025_validation.csv
+            artifacts/nflreadr_advanced_weekly_2025_validation.csv
           if-no-files-found: warn
           retention-days: 14

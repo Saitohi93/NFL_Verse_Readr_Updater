@@ -32,6 +32,33 @@ One row per identified `(game_id, player_id)`. Source rows without `player_id` a
 
 Indexes support season/week, player history, and team/week queries.
 
+### `nflreadr_ngs_receiving_weekly`
+
+One row per NGS receiver and source week. It stores the complete weekly NGS receiving row, including `avg_separation`, and retains the original NGS week alongside `player_stats_week` for reliable joins.
+
+### `nflreadr_pfr_passing_weekly`
+
+One row per `(game_id, player_id)` from PFR advanced passing. PFR IDs are mapped to nflverse GSIS IDs before upload. It includes times blitzed, hurried, hit, pressured, sacked, and PFR pressure percentage.
+
+### `nflreadr_player_weekly_enriched`
+
+A read-only view containing every base player-week column plus receiver separation and quarterback pressure fields. Query this view when advanced metrics are needed; query `nflreadr_player_weekly` when only the original 150-column release is needed.
+
+Example:
+
+```sql
+SELECT
+    player_display_name,
+    week,
+    receiver_avg_separation,
+    qb_blitz_rate,
+    qb_pressure_rate_calculated,
+    qb_pressure_rate_pfr
+FROM nflreadr_player_weekly_enriched
+WHERE season = 2025 AND player_id = ?
+ORDER BY week;
+```
+
 ### `nflreadr_update_log`
 
 One audit row per successful upload with source rows, stored rows, season, timestamp, status, and validation details.
@@ -41,6 +68,8 @@ One audit row per successful upload with source rows, stored rows, season, times
 - The complete 2025 source must contain exactly 19,422 rows before filtering.
 - The 22 rows without `player_id` are counted and excluded.
 - Exactly 19,400 identified-player rows must reach the uploader.
+- Exactly 1,282 NGS receiving rows and 684 PFR advanced-passing rows are required for the locked 2025 load.
+- Every advanced row must match exactly one base player-week row; otherwise validation stops the upload.
 - Blank game IDs or duplicate `(game_id, player_id)` keys stop the upload.
 - Upserts make retries safe.
 - Old rows are retained if a run fails before completion.
