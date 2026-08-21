@@ -16,6 +16,8 @@ The version is pinned so an upstream package release cannot silently change the 
 The first locked dataset is the complete 2025 weekly player-stat release:
 
 - Expected rows: **19,422**
+- Excluded rows without `player_id`: **22**
+- Turso-ready identified-player rows: **19,400**
 - Primary key: `(game_id, player_id)`
 - Source: `nflreadr::load_player_stats(2025, summary_level = "week")`
 - Destination table: `nflreadr_player_weekly`
@@ -29,9 +31,9 @@ The `Verify nflreadr` workflow:
 1. Installs the pinned package and runtime dependencies.
 2. Verifies nflverse data access.
 3. Runs Python loader unit tests.
-4. Verifies the complete 19,422-row source and excludes rows missing `player_id`.
+4. Verifies the complete 19,422-row source and excludes the 22 rows missing `player_id`.
 5. Performs a complete load into temporary SQLite.
-6. Confirms unique keys, row counts, and statistical totals.
+6. Confirms exactly 19,400 unique identified-player rows and matching statistical totals.
 
 ## Turso upload
 
