@@ -61,7 +61,8 @@ jobs:
           python scripts/load_player_weekly.py \
             --source artifacts/nflreadr_player_weekly_2025.csv \
             --backend local \
-            --local-db artifacts/nflreadr_validation.sqlite
+            --local-db artifacts/nflreadr_validation.sqlite \
+            --expected-rows 19400
 
       - name: Publish validation artifacts
         uses: actions/upload-artifact@v4
