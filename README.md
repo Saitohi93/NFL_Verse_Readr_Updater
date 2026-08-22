@@ -26,15 +26,17 @@ Rows without `player_id` are excluded to keep the ingestion path simple and reli
 
 ## 2025 advanced weekly datasets
 
-The updater also retrieves two nflverse datasets and maps them to the same GSIS `player_id` used by the player-week table:
+The updater also retrieves three nflverse datasets and maps them to the same GSIS `player_id` used by the player-week table:
 
 - NFL Next Gen Stats receiving: **1,282** non-summary weekly rows from `nflreadr::load_nextgen_stats(2025, stat_type = "receiving")`
 - PFR advanced passing: **684** weekly rows from `nflreadr::load_pfr_advstats(2025, stat_type = "pass", summary_level = "week")`
+- PFR advanced rushing: **2,352** identified-player weekly rows from **2,355** source rows returned by `nflreadr::load_pfr_advstats(2025, stat_type = "rush", summary_level = "week")`; the 3 rows without a mapped GSIS ID are excluded
 - NGS destination: `nflreadr_ngs_receiving_weekly`
 - PFR destination: `nflreadr_pfr_passing_weekly`
+- PFR rushing destination: `nflreadr_pfr_rushing_weekly`
 - Combined query view: `nflreadr_player_weekly_enriched`
 
-NGS supplies `avg_separation`, `avg_cushion`, intended air yards, and expected YAC fields. PFR supplies times blitzed, hurried, hit, pressured, sacked, and its source pressure percentage.
+NGS supplies `avg_separation`, `avg_cushion`, intended air yards, and expected YAC fields. PFR passing supplies times blitzed, hurried, hit, pressured, sacked, and its source pressure percentage. PFR rushing supplies carries, yards before contact, yards after contact, per-carry averages, and broken tackles.
 
 The enriched view keeps all 19,400 base player-week rows and adds nullable advanced fields. NGS only publishes receiving metrics for players who meet its weekly opportunity minimum. Passing rates use fixed definitions:
 
@@ -56,7 +58,7 @@ The `Verify nflreadr` workflow:
 2. Verifies nflverse data access.
 3. Runs Python loader unit tests.
 4. Verifies the complete 19,422-row source and excludes the 22 rows missing `player_id`.
-5. Verifies exactly 1,282 NGS receiving rows and 684 PFR advanced-passing rows.
+5. Verifies exactly 1,282 NGS receiving rows, 684 PFR advanced-passing rows, and 2,352 identified PFR advanced-rushing rows.
 6. Performs complete loads into temporary SQLite.
 7. Confirms exactly 19,400 unique identified-player rows, matching statistical totals, and a one-to-one enriched view.
 
@@ -69,7 +71,7 @@ The manual `Upload player-weekly data to Turso` workflow:
 3. Upserts rows in retry-safe batches.
 4. Removes stale season rows only after the upload completes.
 5. Validates stored row counts and totals for attempts, carries, targets, passing yards, rushing yards, and receiving yards.
-6. Loads and validates receiver separation, blitz, and pressure sources.
+6. Loads and validates receiver separation, blitz, pressure, and advanced rushing sources.
 7. Creates `nflreadr_player_weekly_enriched` without changing the base-table row count.
 8. Writes successful source runs to `nflreadr_update_log`.
 
@@ -93,6 +95,7 @@ python scripts/load_player_weekly.py \
 python scripts/load_advanced_weekly.py \
   --ngs-source artifacts/nflreadr_ngs_receiving_weekly_2025.csv \
   --pfr-source artifacts/nflreadr_pfr_passing_weekly_2025.csv \
+  --pfr-rush-source artifacts/nflreadr_pfr_rushing_weekly_2025.csv \
   --backend local
 ```
 

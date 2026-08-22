@@ -50,11 +50,12 @@ jobs:
           NFLREADR_EXPECTED_SOURCE_ROWS: "19422"
         run: Rscript scripts/export_player_weekly.R
 
-      - name: Export NGS separation and PFR pressure sources
+      - name: Export NGS, PFR passing, and PFR rushing sources
         env:
           NFLREADR_SEASON: "2025"
           NFLREADR_EXPECTED_NGS_ROWS: "1282"
           NFLREADR_EXPECTED_PFR_ROWS: "684"
+          NFLREADR_EXPECTED_PFR_RUSH_ROWS: "2352"
         run: Rscript scripts/export_advanced_weekly.R
 
       - name: Upload and validate Turso data
@@ -75,9 +76,11 @@ jobs:
           python scripts/load_advanced_weekly.py \
             --ngs-source artifacts/nflreadr_ngs_receiving_weekly_2025.csv \
             --pfr-source artifacts/nflreadr_pfr_passing_weekly_2025.csv \
+            --pfr-rush-source artifacts/nflreadr_pfr_rushing_weekly_2025.csv \
             --backend turso \
             --expected-ngs-rows 1282 \
-            --expected-pfr-rows 684
+            --expected-pfr-rows 684 \
+            --expected-pfr-rush-rows 2352
 
       - name: Publish source validation summary
         if: always()

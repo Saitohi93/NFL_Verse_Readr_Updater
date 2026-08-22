@@ -19,6 +19,7 @@ from load_player_weekly import (
 
 NGS_TABLE = "nflreadr_ngs_receiving_weekly"
 PFR_TABLE = "nflreadr_pfr_passing_weekly"
+PFR_RUSH_TABLE = "nflreadr_pfr_rushing_weekly"
 PLAYER_TABLE = "nflreadr_player_weekly"
 ENRICHED_VIEW = "nflreadr_player_weekly_enriched"
 AUDIT_TABLE = "nflreadr_update_log"
@@ -228,7 +229,14 @@ def create_enriched_view(database):
                 CASE WHEN {denominator} > 0
                     THEN q.times_pressured * 1.0 / {denominator}
                 END AS qb_pressure_rate_calculated,
-                q.times_pressured_pct AS qb_pressure_rate_pfr
+                q.times_pressured_pct AS qb_pressure_rate_pfr,
+                r.carries AS pfr_rush_carries,
+                r.rushing_yards_before_contact AS pfr_rushing_yards_before_contact,
+                r.rushing_yards_before_contact_avg AS pfr_rushing_yards_before_contact_avg,
+                r.rushing_yards_after_contact AS pfr_rushing_yards_after_contact,
+                r.rushing_yards_after_contact_avg AS pfr_rushing_yards_after_contact_avg,
+                r.rushing_broken_tackles AS pfr_rushing_broken_tackles,
+                r.receiving_broken_tackles AS pfr_receiving_broken_tackles
             FROM {quote_identifier(PLAYER_TABLE)} AS p
             LEFT JOIN {quote_identifier(NGS_TABLE)} AS n
                 ON n.season = p.season
@@ -237,7 +245,10 @@ def create_enriched_view(database):
                 AND n.player_id = p.player_id
             LEFT JOIN {quote_identifier(PFR_TABLE)} AS q
                 ON q.game_id = p.game_id
-                AND q.player_id = p.player_id;
+                AND q.player_id = p.player_id
+            LEFT JOIN {quote_identifier(PFR_RUSH_TABLE)} AS r
+                ON r.game_id = p.game_id
+                AND r.player_id = p.player_id;
             """,
         ]
     )
@@ -270,14 +281,33 @@ def create_enriched_view(database):
     )
     ngs_rows = int(float(scalar(database, f"SELECT COUNT(*) FROM {NGS_TABLE};") or 0))
     pfr_rows = int(float(scalar(database, f"SELECT COUNT(*) FROM {PFR_TABLE};") or 0))
-    if separation_rows != ngs_rows or pressure_rows != pfr_rows:
+    rushing_rows = int(
+        float(
+            scalar(
+                database,
+                f"SELECT COUNT(*) FROM {ENRICHED_VIEW} "
+                "WHERE pfr_rushing_yards_before_contact IS NOT NULL;",
+            )
+            or 0
+        )
+    )
+    pfr_rush_rows = int(
+        float(scalar(database, f"SELECT COUNT(*) FROM {PFR_RUSH_TABLE};") or 0)
+    )
+    if (
+        separation_rows != ngs_rows
+        or pressure_rows != pfr_rows
+        or rushing_rows != pfr_rush_rows
+    ):
         raise RuntimeError(
             "Enriched view did not match every advanced source row: "
-            f"separation={separation_rows}/{ngs_rows}, pressure={pressure_rows}/{pfr_rows}."
+            f"separation={separation_rows}/{ngs_rows}, pressure={pressure_rows}/{pfr_rows}, "
+            f"rushing={rushing_rows}/{pfr_rush_rows}."
         )
     print(
         f"Enriched view validation passed: rows={view_rows:,}, "
-        f"separation_rows={separation_rows:,}, pressure_rows={pressure_rows:,}"
+        f"separation_rows={separation_rows:,}, pressure_rows={pressure_rows:,}, "
+        f"rushing_rows={rushing_rows:,}"
     )
 
 
@@ -285,11 +315,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ngs-source", required=True)
     parser.add_argument("--pfr-source", required=True)
+    parser.add_argument("--pfr-rush-source", required=True)
     parser.add_argument("--backend", choices=("local", "turso"), default="local")
     parser.add_argument("--local-db", default="artifacts/nflreadr_validation.sqlite")
     parser.add_argument("--batch-size", type=int, default=50)
     parser.add_argument("--expected-ngs-rows", type=int)
     parser.add_argument("--expected-pfr-rows", type=int)
+    parser.add_argument("--expected-pfr-rush-rows", type=int)
     args = parser.parse_args()
     if args.batch_size < 1 or args.batch_size > 100:
         raise RuntimeError("Batch size must be between 1 and 100.")
@@ -338,9 +370,29 @@ def main():
             batch_size=args.batch_size,
             run_id=run_id,
         )
-        if ngs_season != pfr_season:
+        pfr_rush_season, _ = load_dataset(
+            database=database,
+            source=args.pfr_rush_source,
+            table=PFR_RUSH_TABLE,
+            key_columns=("game_id", "player_id"),
+            required_metrics=(
+                "carries",
+                "rushing_yards_before_contact",
+                "rushing_yards_before_contact_avg",
+                "rushing_yards_after_contact",
+                "rushing_yards_after_contact_avg",
+                "rushing_broken_tackles",
+            ),
+            expected_rows=args.expected_pfr_rush_rows,
+            source_id="nflreadr_pfr_rushing_weekly",
+            batch_size=args.batch_size,
+            run_id=run_id,
+        )
+        if len({ngs_season, pfr_season, pfr_rush_season}) != 1:
             raise RuntimeError(
-                f"Advanced sources disagree on season: {ngs_season} vs {pfr_season}."
+                "Advanced sources disagree on season: "
+                f"NGS={ngs_season}, PFR passing={pfr_season}, "
+                f"PFR rushing={pfr_rush_season}."
             )
         database.execute_batch(
             [
@@ -348,6 +400,8 @@ def main():
                 f"ON {quote_identifier(NGS_TABLE)} (player_id, season, season_type, week);",
                 f"CREATE INDEX IF NOT EXISTS idx_pfr_passing_player_game "
                 f"ON {quote_identifier(PFR_TABLE)} (player_id, game_id);",
+                f"CREATE INDEX IF NOT EXISTS idx_pfr_rushing_player_game "
+                f"ON {quote_identifier(PFR_RUSH_TABLE)} (player_id, game_id);",
             ]
         )
         create_enriched_view(database)

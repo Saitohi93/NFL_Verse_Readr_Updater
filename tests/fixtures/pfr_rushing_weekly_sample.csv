@@ -1,0 +1,2 @@
+game_id,pfr_game_id,season,week,game_type,team,opponent,pfr_player_name,pfr_player_id,carries,rushing_yards_before_contact,rushing_yards_before_contact_avg,rushing_yards_after_contact,rushing_yards_after_contact_avg,rushing_broken_tackles,receiving_broken_tackles,gsis_id,player_id
+2025_01_AAA_BBB,202509070aaa,2025,1,REG,AAA,BBB,Beta Test,TestBe00,15,40,2.7,35,2.3,3,1,00-0000002,00-0000002

@@ -40,9 +40,13 @@ One row per NGS receiver and source week. It stores the complete weekly NGS rece
 
 One row per `(game_id, player_id)` from PFR advanced passing. PFR IDs are mapped to nflverse GSIS IDs before upload. It includes times blitzed, hurried, hit, pressured, sacked, and PFR pressure percentage.
 
+### `nflreadr_pfr_rushing_weekly`
+
+One row per identified `(game_id, player_id)` from PFR advanced rushing. It stores carries, rushing yards before and after contact, both per-carry averages, rushing broken tackles, and receiving broken tackles. PFR IDs are mapped to nflverse GSIS IDs before upload; rows without a mapping are excluded.
+
 ### `nflreadr_player_weekly_enriched`
 
-A read-only view containing every base player-week column plus receiver separation and quarterback pressure fields. Query this view when advanced metrics are needed; query `nflreadr_player_weekly` when only the original 150-column release is needed.
+A read-only view containing every base player-week column plus receiver separation, quarterback pressure, and PFR advanced-rushing fields. Query this view when advanced metrics are needed; query `nflreadr_player_weekly` when only the original 150-column release is needed.
 
 Example:
 
@@ -53,7 +57,10 @@ SELECT
     receiver_avg_separation,
     qb_blitz_rate,
     qb_pressure_rate_calculated,
-    qb_pressure_rate_pfr
+    qb_pressure_rate_pfr,
+    pfr_rushing_yards_before_contact,
+    pfr_rushing_yards_after_contact,
+    pfr_rushing_broken_tackles
 FROM nflreadr_player_weekly_enriched
 WHERE season = 2025 AND player_id = ?
 ORDER BY week;
@@ -68,7 +75,8 @@ One audit row per successful upload with source rows, stored rows, season, times
 - The complete 2025 source must contain exactly 19,422 rows before filtering.
 - The 22 rows without `player_id` are counted and excluded.
 - Exactly 19,400 identified-player rows must reach the uploader.
-- Exactly 1,282 NGS receiving rows and 684 PFR advanced-passing rows are required for the locked 2025 load.
+- Exactly 1,282 NGS receiving rows, 684 PFR advanced-passing rows, and 2,352 identified PFR advanced-rushing rows are required for the locked 2025 load.
+- The locked PFR advanced-rushing source contains 2,355 rows; 3 rows without a mapped `player_id` are counted and excluded.
 - Every advanced row must match exactly one base player-week row; otherwise validation stops the upload.
 - Blank game IDs or duplicate `(game_id, player_id)` keys stop the upload.
 - Upserts make retries safe.
