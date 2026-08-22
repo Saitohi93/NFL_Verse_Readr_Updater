@@ -125,10 +125,62 @@ if (any(is.na(pfr$times_blitzed)) || any(is.na(pfr$times_pressured_pct))) {
 assert_unique(pfr, c("game_id", "player_id"), "PFR advanced passing")
 pfr <- pfr[order(pfr$game_type, pfr$week, pfr$game_id, pfr$player_id), , drop = FALSE]
 
+pfr_rush_source <- load_pfr_advstats(
+  seasons = season,
+  stat_type = "rush",
+  summary_level = "week",
+  file_type = "csv"
+)
+require_columns(
+  pfr_rush_source,
+  c(
+    "game_id", "season", "week", "game_type", "team", "opponent",
+    "pfr_player_id", "pfr_player_name", "carries",
+    "rushing_yards_before_contact", "rushing_yards_before_contact_avg",
+    "rushing_yards_after_contact", "rushing_yards_after_contact_avg",
+    "rushing_broken_tackles", "receiving_broken_tackles"
+  ),
+  "PFR advanced rushing source"
+)
+pfr_rush <- merge(
+  pfr_rush_source,
+  player_map,
+  by.x = "pfr_player_id",
+  by.y = "pfr_id",
+  all.x = TRUE,
+  sort = FALSE
+)
+pfr_rush$player_id <- pfr_rush$gsis_id
+identified_pfr_rush <- !is.na(pfr_rush$player_id) & pfr_rush$player_id != ""
+excluded_pfr_rush <- sum(!identified_pfr_rush)
+pfr_rush <- as.data.frame(pfr_rush[identified_pfr_rush, , drop = FALSE])
+validate_rows(
+  pfr_rush,
+  expected_rows("NFLREADR_EXPECTED_PFR_RUSH_ROWS", 2352),
+  "PFR advanced rushing weekly source"
+)
+rushing_required <- c(
+  "carries",
+  "rushing_yards_before_contact", "rushing_yards_before_contact_avg",
+  "rushing_yards_after_contact", "rushing_yards_after_contact_avg",
+  "rushing_broken_tackles"
+)
+if (any(vapply(pfr_rush[rushing_required], anyNA, logical(1)))) {
+  stop("PFR advanced rushing source contains missing rushing fields.", call. = FALSE)
+}
+assert_unique(pfr_rush, c("game_id", "player_id"), "PFR advanced rushing")
+pfr_rush <- pfr_rush[
+  order(pfr_rush$game_type, pfr_rush$week, pfr_rush$game_id, pfr_rush$player_id),
+  ,
+  drop = FALSE
+]
+
 ngs_path <- file.path(output_dir, paste0("nflreadr_ngs_receiving_weekly_", season, ".csv"))
 pfr_path <- file.path(output_dir, paste0("nflreadr_pfr_passing_weekly_", season, ".csv"))
+pfr_rush_path <- file.path(output_dir, paste0("nflreadr_pfr_rushing_weekly_", season, ".csv"))
 write.csv(ngs, ngs_path, row.names = FALSE, na = "")
 write.csv(pfr, pfr_path, row.names = FALSE, na = "")
+write.csv(pfr_rush, pfr_rush_path, row.names = FALSE, na = "")
 
 validation <- data.frame(
   metric = c(
@@ -139,7 +191,12 @@ validation <- data.frame(
     "pfr_passing_weekly_rows",
     "pfr_excluded_missing_player_id",
     "pfr_times_blitzed_non_missing",
-    "pfr_pressure_pct_non_missing"
+    "pfr_pressure_pct_non_missing",
+    "pfr_rushing_weekly_rows",
+    "pfr_rushing_excluded_missing_player_id",
+    "pfr_rushing_yards_before_contact_non_missing",
+    "pfr_rushing_yards_after_contact_non_missing",
+    "pfr_rushing_broken_tackles_non_missing"
   ),
   value = c(
     season,
@@ -149,7 +206,12 @@ validation <- data.frame(
     nrow(pfr),
     excluded_pfr,
     sum(!is.na(pfr$times_blitzed)),
-    sum(!is.na(pfr$times_pressured_pct))
+    sum(!is.na(pfr$times_pressured_pct)),
+    nrow(pfr_rush),
+    excluded_pfr_rush,
+    sum(!is.na(pfr_rush$rushing_yards_before_contact)),
+    sum(!is.na(pfr_rush$rushing_yards_after_contact)),
+    sum(!is.na(pfr_rush$rushing_broken_tackles))
   ),
   stringsAsFactors = FALSE
 )
@@ -164,5 +226,7 @@ message(
   ", ngs_rows=", nrow(ngs),
   ", ngs_excluded_missing_player_id=", excluded_ngs,
   ", pfr_rows=", nrow(pfr),
-  ", pfr_excluded_missing_player_id=", excluded_pfr
+  ", pfr_excluded_missing_player_id=", excluded_pfr,
+  ", pfr_rush_rows=", nrow(pfr_rush),
+  ", pfr_rush_excluded_missing_player_id=", excluded_pfr_rush
 )

@@ -39,6 +39,8 @@ class AdvancedLoaderTest(unittest.TestCase):
                     str(FIXTURES / "ngs_receiving_weekly_sample.csv"),
                     "--pfr-source",
                     str(FIXTURES / "pfr_passing_weekly_sample.csv"),
+                    "--pfr-rush-source",
+                    str(FIXTURES / "pfr_rushing_weekly_sample.csv"),
                     "--backend",
                     "local",
                     "--local-db",
@@ -46,6 +48,8 @@ class AdvancedLoaderTest(unittest.TestCase):
                     "--expected-ngs-rows",
                     "1",
                     "--expected-pfr-rows",
+                    "1",
+                    "--expected-pfr-rush-rows",
                     "1",
                 ],
                 check=True,
@@ -67,10 +71,16 @@ class AdvancedLoaderTest(unittest.TestCase):
                     "SELECT qb_blitz_rate, qb_pressure_rate_calculated, qb_pressure_rate_pfr "
                     "FROM nflreadr_player_weekly_enriched WHERE player_id='00-0000001'"
                 ).fetchone()
+                rushing = connection.execute(
+                    "SELECT pfr_rushing_yards_before_contact, "
+                    "pfr_rushing_yards_after_contact, pfr_rushing_broken_tackles "
+                    "FROM nflreadr_player_weekly_enriched WHERE player_id='00-0000002'"
+                ).fetchone()
                 advanced_audits = connection.execute(
                     "SELECT COUNT(*) FROM nflreadr_update_log "
                     "WHERE source_id IN "
-                    "('nflreadr_ngs_receiving_weekly','nflreadr_pfr_passing_weekly')"
+                    "('nflreadr_ngs_receiving_weekly','nflreadr_pfr_passing_weekly',"
+                    "'nflreadr_pfr_rushing_weekly')"
                 ).fetchone()[0]
             finally:
                 connection.close()
@@ -80,7 +90,8 @@ class AdvancedLoaderTest(unittest.TestCase):
             self.assertAlmostEqual(rates[0], 9 / 32)
             self.assertAlmostEqual(rates[1], 8 / 32)
             self.assertAlmostEqual(rates[2], 0.222)
-            self.assertEqual(advanced_audits, 2)
+            self.assertEqual(rushing, (40, 35, 3))
+            self.assertEqual(advanced_audits, 3)
 
 
 if __name__ == "__main__":
